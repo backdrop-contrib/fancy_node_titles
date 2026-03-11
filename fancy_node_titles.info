@@ -1,0 +1,7 @@
+name = Fancy Node Titles
+description = Enables HTML markup and display title overrides in node titles, configurable per content type.
+package = Fields
+backdrop = 1.x
+type = module
+
+dependencies[] = node

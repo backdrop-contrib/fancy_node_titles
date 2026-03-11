@@ -1,0 +1,375 @@
+<?php
+/**
+ * @file
+ * Enables HTML markup, display title overrides, and icon prefixes in node
+ * titles, configurable per content type.
+ */
+
+/**
+ * The default comma-separated list of allowed tags used when none are saved.
+ */
+define('FANCY_NODE_TITLES_DEFAULT_TAGS', 'strong, em, sup, sub, span, abbr');
+
+/**
+ * Parses a comma-separated tag string into a clean array for filter_xss().
+ *
+ * @param string $tag_string
+ *   Comma-separated tag names, e.g. "strong, em, sup".
+ *
+ * @return array
+ *   A flat array of lowercase tag names with no angle brackets.
+ */
+function fancy_node_titles_parse_tags($tag_string) {
+  $tags = array_map('trim', explode(',', $tag_string));
+  $tags = array_map('strtolower', $tags);
+  $tags = array_map(function($tag) {
+    return trim($tag, '<>');
+  }, $tags);
+  return array_values(array_filter($tags));
+}
+
+/**
+ * Returns the allowed tags for a given content type as an array.
+ *
+ * @param string $type
+ *   The machine name of the content type.
+ *
+ * @return array
+ *   A flat array of tag names suitable for passing to filter_xss().
+ */
+function fancy_node_titles_type_tags($type) {
+  $type_tags = config_get('fancy_node_titles.settings', 'type_tags');
+  if (isset($type_tags[$type])) {
+    return fancy_node_titles_parse_tags($type_tags[$type]);
+  }
+  return fancy_node_titles_parse_tags(FANCY_NODE_TITLES_DEFAULT_TAGS);
+}
+
+/**
+ * Returns whether fancy titles are enabled for a given content type.
+ *
+ * @param string $type
+ *   The machine name of the content type.
+ *
+ * @return bool
+ */
+function fancy_node_titles_enabled($type) {
+  $enabled_types = config_get('fancy_node_titles.settings', 'enabled_types');
+  return !empty($enabled_types) && in_array($type, (array) $enabled_types);
+}
+
+/**
+ * Returns the fully rendered title for a node, including icon and HTML.
+ *
+ * Uses the display title when set, falling back to the node title. Prepends a
+ * Phosphor icon SVG if one has been configured.
+ *
+ * @param object $node
+ *   The node object.
+ *
+ * @return string
+ *   Filtered HTML safe for output.
+ */
+function fancy_node_titles_get_title($node) {
+  $tags  = fancy_node_titles_type_tags($node->type);
+  $source = !empty($node->display_title) ? $node->display_title : $node->title;
+  $title = filter_xss($source, $tags);
+
+  if (!empty($node->icon)) {
+    $icon_html = icon(check_plain($node->icon), array(
+      'attributes' => array(
+        'class'  => array('fancy-node-titles-icon'),
+        'width'  => '1em',
+        'height' => '1em',
+      ),
+    ));
+    if ($icon_html) {
+      $title = $icon_html . $title;
+    }
+  }
+
+  return $title;
+}
+
+/**
+ * Implements hook_config_info().
+ */
+function fancy_node_titles_config_info() {
+  return array(
+    'fancy_node_titles.settings' => array(
+      'label' => t('Fancy Node Titles settings'),
+      'group' => t('Configuration'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function fancy_node_titles_menu() {
+  $items['fancy-node-titles/icon-preview/%'] = array(
+    'title'           => 'Icon preview',
+    'page callback'   => 'fancy_node_titles_icon_preview',
+    'page arguments'  => array(2),
+    'access callback' => 'user_access',
+    'access arguments' => array('access content'),
+    'type'            => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * AJAX callback: returns a JSON icon preview for the given icon name.
+ */
+function fancy_node_titles_icon_preview($icon_name) {
+  $icon_name = preg_replace('/[^a-z0-9\-]/', '', strtolower($icon_name));
+  $html = $icon_name ? icon($icon_name) : '';
+  backdrop_json_output(array(
+    'html'  => $html,
+    'valid' => !empty($html),
+  ));
+  backdrop_exit();
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function fancy_node_titles_node_load($nodes, $types) {
+  $enabled_types = config_get('fancy_node_titles.settings', 'enabled_types') ?: array();
+  $nids = array();
+  foreach ($nodes as $node) {
+    if (in_array($node->type, $enabled_types)) {
+      $nids[] = $node->nid;
+    }
+  }
+  if (empty($nids)) {
+    return;
+  }
+  $result = db_query(
+    'SELECT nid, display_title, icon FROM {fancy_node_titles_display} WHERE nid IN (:nids)',
+    array(':nids' => $nids)
+  );
+  foreach ($result as $row) {
+    $nodes[$row->nid]->display_title = $row->display_title;
+    $nodes[$row->nid]->icon          = $row->icon;
+  }
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function fancy_node_titles_node_insert($node) {
+  fancy_node_titles_node_update($node);
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function fancy_node_titles_node_update($node) {
+  if (!fancy_node_titles_enabled($node->type)) {
+    return;
+  }
+  db_merge('fancy_node_titles_display')
+    ->key(array('nid' => $node->nid))
+    ->fields(array(
+      'display_title' => isset($node->display_title) ? trim($node->display_title) : '',
+      'icon'          => isset($node->icon) ? trim($node->icon) : '',
+    ))
+    ->execute();
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function fancy_node_titles_node_delete($node) {
+  db_delete('fancy_node_titles_display')
+    ->condition('nid', $node->nid)
+    ->execute();
+}
+
+/**
+ * Implements hook_form_node_type_form_alter().
+ */
+function fancy_node_titles_form_node_type_form_alter(&$form, &$form_state) {
+  $type = $form['#node_type']->type;
+  $enabled_types = config_get('fancy_node_titles.settings', 'enabled_types') ?: array();
+  $type_tags     = config_get('fancy_node_titles.settings', 'type_tags') ?: array();
+  $display_modes = config_get('fancy_node_titles.settings', 'display_title_mode') ?: array();
+
+  $current_tags = isset($type_tags[$type]) ? $type_tags[$type] : FANCY_NODE_TITLES_DEFAULT_TAGS;
+  $current_mode = isset($display_modes[$type]) ? $display_modes[$type] : 'on_demand';
+  $states_enabled = array(
+    'visible' => array(
+      'input[name="fancy_node_titles_enabled"]' => array('checked' => TRUE),
+    ),
+  );
+
+  $form['fancy_node_titles'] = array(
+    '#type'        => 'fieldset',
+    '#title'       => t('Fancy Node Titles'),
+    '#group'       => 'additional_settings',
+    '#collapsible' => TRUE,
+    '#collapsed'   => TRUE,
+  );
+  $form['fancy_node_titles']['fancy_node_titles_enabled'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Enable Fancy Node Titles'),
+    '#description'   => t('Enables HTML markup, display title override, and icon prefix for this content type.'),
+    '#default_value' => in_array($type, $enabled_types),
+  );
+  $form['fancy_node_titles']['fancy_node_titles_tags'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Allowed tags'),
+    '#description'   => t('Comma-separated list of HTML tags permitted in the title, e.g. %example. Tag names only — no angle brackets required.', array(
+      '%example' => 'strong, em, sup, sub',
+    )),
+    '#default_value' => $current_tags,
+    '#states'        => $states_enabled,
+  );
+  $form['fancy_node_titles']['fancy_node_titles_display_title_mode'] = array(
+    '#type'          => 'radios',
+    '#title'         => t('Display title and icon fields'),
+    '#options'       => array(
+      'on_demand' => t('Show on demand — hidden until the editor clicks a toggle link. Shown immediately if a value is already set.'),
+      'always'    => t('Always visible — fields are always shown on the node edit form.'),
+    ),
+    '#default_value' => $current_mode,
+    '#states'        => $states_enabled,
+  );
+
+  $form['#submit'][] = 'fancy_node_titles_node_type_form_submit';
+}
+
+/**
+ * Submit handler for the content type edit form.
+ */
+function fancy_node_titles_node_type_form_submit($form, &$form_state) {
+  $type          = $form['#node_type']->type;
+  $config        = config('fancy_node_titles.settings');
+  $enabled_types = $config->get('enabled_types') ?: array();
+  $type_tags     = $config->get('type_tags') ?: array();
+  $display_modes = $config->get('display_title_mode') ?: array();
+
+  if (!empty($form_state['values']['fancy_node_titles_enabled'])) {
+    if (!in_array($type, $enabled_types)) {
+      $enabled_types[] = $type;
+    }
+    $tags = fancy_node_titles_parse_tags($form_state['values']['fancy_node_titles_tags']);
+    $type_tags[$type]     = implode(', ', $tags);
+    $display_modes[$type] = $form_state['values']['fancy_node_titles_display_title_mode'];
+  }
+  else {
+    $enabled_types = array_values(array_diff($enabled_types, array($type)));
+    unset($type_tags[$type]);
+    unset($display_modes[$type]);
+  }
+
+  $config->set('enabled_types', $enabled_types);
+  $config->set('type_tags', $type_tags);
+  $config->set('display_title_mode', $display_modes);
+  $config->save();
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Adds the display title, icon, and tag toolbar to node edit forms for enabled
+ * content types.
+ */
+function fancy_node_titles_form_alter(&$form, &$form_state, $form_id) {
+  if (!isset($form['#node']) || !isset($form['title'])) {
+    return;
+  }
+  $type = $form['#node']->type;
+  if (!fancy_node_titles_enabled($type)) {
+    return;
+  }
+
+  $allowed_tags = fancy_node_titles_type_tags($type);
+  $tag_display  = implode(', ', array_map(function($tag) {
+    return '<' . $tag . '>';
+  }, $allowed_tags));
+
+  $display_modes  = config_get('fancy_node_titles.settings', 'display_title_mode') ?: array();
+  $display_mode   = isset($display_modes[$type]) ? $display_modes[$type] : 'on_demand';
+
+  $node                  = $form['#node'];
+  $display_title_default = isset($node->display_title) ? $node->display_title : '';
+  $icon_default          = isset($node->icon) ? $node->icon : '';
+  $has_custom            = !empty($display_title_default) || !empty($icon_default);
+
+  // Open the title group container on the core title field.
+  $form['title']['#prefix'] = (isset($form['title']['#prefix']) ? $form['title']['#prefix'] : '') .
+    '<div class="fancy-node-titles-group">';
+
+  // Display title field — immediately after the node title.
+  $form['display_title'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Display title'),
+    '#description'   => t('Optional. Overrides the displayed title with HTML markup. When set, the title above is used only for the URL and admin listings. Allowed HTML tags: !tags', array(
+      '!tags' => '<code>' . check_plain($tag_display) . '</code>',
+    )),
+    '#default_value' => $display_title_default,
+    '#maxlength'     => 512,
+    '#weight'        => $form['title']['#weight'] + 0.1,
+  );
+
+  // Icon field — after the display title. Closes the group container.
+  $form['icon'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Title icon'),
+    '#field_prefix'  => icon('star', array(
+      'attributes' => array(
+        'width'  => '1.2em',
+        'height' => '1.2em',
+        'class'  => array('fancy-node-titles-field-icon'),
+      ),
+    )),
+    '#description'   => t('Optional. Enter a Phosphor icon name (e.g. %star, %heart) to display before the title. !browse', array(
+      '%star'   => 'star',
+      '%heart'  => 'heart-fill',
+      '!browse' => l(t('Browse available icons'), 'admin/config/media/icons/browse', array(
+        'attributes' => array('target' => '_blank'),
+      )),
+    )),
+    '#default_value' => $icon_default,
+    '#maxlength'     => 128,
+    '#weight'        => $form['title']['#weight'] + 0.2,
+    '#attributes'    => array('class' => array('fancy-node-titles-icon-input')),
+    '#suffix'        => '</div>',
+  );
+
+  // Attach JS and CSS once at the form level.
+  $form['#attached']['js'][]  = backdrop_get_path('module', 'fancy_node_titles') . '/js/fancy_node_titles.js';
+  $form['#attached']['css'][] = backdrop_get_path('module', 'fancy_node_titles') . '/css/fancy_node_titles.css';
+  $form['#attached']['js'][]  = array(
+    'data' => array(
+      'fancyNodeTitles' => array(
+        'allowedTags'      => $allowed_tags,
+        'displayTitleMode' => $display_mode,
+        'hasCustom'        => $has_custom,
+        'iconPreviewPath'  => url('fancy-node-titles/icon-preview'),
+      ),
+    ),
+    'type' => 'setting',
+  );
+}
+
+/**
+ * Implements hook_preprocess_node().
+ */
+function fancy_node_titles_preprocess_node(&$variables) {
+  $node = $variables['node'];
+  if (fancy_node_titles_enabled($node->type)) {
+    $variables['title'] = fancy_node_titles_get_title($node);
+  }
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function fancy_node_titles_node_view($node, $view_mode, $langcode) {
+  if ($view_mode === 'full' && fancy_node_titles_enabled($node->type)) {
+    backdrop_set_title(fancy_node_titles_get_title($node), PASS_THROUGH);
+  }
+}
