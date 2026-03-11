@@ -325,13 +325,18 @@ function fancy_node_titles_form_alter(&$form, &$form_state, $form_id) {
         'class'  => array('fancy-node-titles-field-icon'),
       ),
     )),
-    '#description'   => t('Optional. Enter a Phosphor icon name (e.g. %star, %heart) to display before the title. !browse', array(
-      '%star'   => 'star',
-      '%heart'  => 'heart-fill',
-      '!browse' => l(t('Browse available icons'), 'admin/config/media/icons/browse', array(
-        'attributes' => array('target' => '_blank'),
-      )),
-    )),
+    '#description'   => t('Optional. Enter a Phosphor icon name (e.g. %star, %heart) to display before the title.', array(
+      '%star'  => 'star',
+      '%heart' => 'heart-fill',
+    )) . ' ' . (module_exists('icon_browser')
+      ? l(t('Browse available icons'), 'admin/config/media/icons/browse', array(
+          'attributes' => array('target' => '_blank'),
+        ))
+      : l(t('Install the Icon Browser module to browse available icons'), 'https://backdropcms.org/project/icon_browser', array(
+          'attributes' => array('target' => '_blank'),
+          'external'   => TRUE,
+        ))
+    ),
     '#default_value' => $icon_default,
     '#maxlength'     => 128,
     '#weight'        => $form['title']['#weight'] + 0.2,
@@ -369,7 +374,13 @@ function fancy_node_titles_preprocess_node(&$variables) {
  * Implements hook_node_view().
  */
 function fancy_node_titles_node_view($node, $view_mode, $langcode) {
-  if ($view_mode === 'full' && fancy_node_titles_enabled($node->type)) {
+  if (!fancy_node_titles_enabled($node->type)) {
+    return;
+  }
+  // Attach front-end styles so icon sizing and spacing are applied on display.
+  $node->content['#attached']['css'][] = backdrop_get_path('module', 'fancy_node_titles') . '/css/fancy_node_titles.css';
+
+  if ($view_mode === 'full') {
     backdrop_set_title(fancy_node_titles_get_title($node), PASS_THROUGH);
   }
 }
