@@ -76,7 +76,7 @@ function fancy_node_titles_get_title($node) {
   $title = filter_xss($source, $tags);
 
   if (!empty($node->icon)) {
-    $icon_html = icon(check_plain($node->icon), array(
+    $icon_html = icon(check_plain(strtolower($node->icon)), array(
       'attributes' => array(
         'class'  => array('fancy-node-titles-icon'),
         'width'  => '1em',
@@ -173,7 +173,7 @@ function fancy_node_titles_node_update($node) {
     ->key(array('nid' => $node->nid))
     ->fields(array(
       'display_title' => isset($node->display_title) ? trim($node->display_title) : '',
-      'icon'          => isset($node->icon) ? trim($node->icon) : '',
+      'icon'          => isset($node->icon) ? strtolower(trim($node->icon)) : '',
     ))
     ->execute();
 }
