@@ -72,9 +72,9 @@ icons, install the optional
 [Icon Browser](https://backdropcms.org/project/icon_browser) module and visit
 `admin/config/media/icons/browse`.
 
-## Requirements
+## Notes About Use of AI
 
-- Node module (Backdrop core)
+This module was developed with assistance from AI tools. AI was used to generate code, plan features, and make iterative improvements throughout development.
 
 ## Issues
 
