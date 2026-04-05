@@ -43,21 +43,20 @@ function fancy_node_titles_schema() {
 function fancy_node_titles_install() {
   // Migrate data from html_title module if it exists.
   if (db_table_exists('html_title_display')) {
+    // Drop the table that hook_schema() just created, then rename the old one.
+    db_drop_table('fancy_node_titles_display');
     db_rename_table('html_title_display', 'fancy_node_titles_display');
-  }
-  else {
-    db_create_table('fancy_node_titles_display', fancy_node_titles_schema()['fancy_node_titles_display']);
-  }
 
-  // Add the icon column if the table was just renamed and lacks it.
-  if (!db_field_exists('fancy_node_titles_display', 'icon')) {
-    db_add_field('fancy_node_titles_display', 'icon', array(
-      'description' => 'Phosphor icon name to display before the title.',
-      'type' => 'varchar',
-      'length' => 128,
-      'not null' => FALSE,
-      'default' => '',
-    ));
+    // Add the icon column if the renamed table lacks it.
+    if (!db_field_exists('fancy_node_titles_display', 'icon')) {
+      db_add_field('fancy_node_titles_display', 'icon', array(
+        'description' => 'Phosphor icon name to display before the title.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => FALSE,
+        'default' => '',
+      ));
+    }
   }
 
   // Migrate config from html_title module if it exists.
@@ -74,7 +73,6 @@ function fancy_node_titles_install() {
  * Implements hook_uninstall().
  */
 function fancy_node_titles_uninstall() {
-  db_drop_table('fancy_node_titles_display');
   config('fancy_node_titles.settings')->delete();
 }
 
