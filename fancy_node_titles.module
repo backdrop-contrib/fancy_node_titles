@@ -46,6 +46,25 @@ function fancy_node_titles_type_tags($type) {
 }
 
 /**
+ * Form element validator: constrains an icon-name value to the character
+ * set used by Phosphor icon machine names (lowercase letters, digits, and
+ * hyphens). Empty values are allowed — the icon field is optional.
+ *
+ * Whether the name resolves to an actual icon is intentionally NOT checked
+ * here: render-time icon() returns an empty string for unknown names, which
+ * degrades to the title without an icon prefix.
+ */
+function fancy_node_titles_validate_icon_name($element, &$form_state) {
+  $value = trim($element['#value']);
+  if ($value !== '' && !preg_match('/^[a-zA-Z0-9-]+$/', $value)) {
+    form_error($element, t('The icon name %name is not valid. Use only letters, digits, and hyphens (e.g. %example).', array(
+      '%name'    => $value,
+      '%example' => 'heart-fill',
+    )));
+  }
+}
+
+/**
  * Returns whether fancy titles are enabled for a given content type.
  *
  * @param string $type
@@ -358,11 +377,12 @@ function fancy_node_titles_form_node_form_alter(&$form, &$form_state, $form_id) 
           'external'   => TRUE,
         ))
     ),
-    '#default_value' => $icon_default,
-    '#maxlength'     => 128,
-    '#weight'        => $form['title']['#weight'] + 0.2,
-    '#attributes'    => array('class' => array('fancy-node-titles-icon-input')),
-    '#suffix'        => '</div>',
+    '#default_value'    => $icon_default,
+    '#maxlength'        => 128,
+    '#weight'           => $form['title']['#weight'] + 0.2,
+    '#attributes'       => array('class' => array('fancy-node-titles-icon-input')),
+    '#suffix'           => '</div>',
+    '#element_validate' => array('fancy_node_titles_validate_icon_name'),
   );
 
   // Attach JS and CSS once at the form level.
