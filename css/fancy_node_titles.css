@@ -93,10 +93,23 @@
   font-style: italic;
 }
 
-/* Icon rendered before the title on the front end */
+/* Icon rendered before the title on the front end. The default offset is
+   tuned for body-text contexts (e.g. a Views table cell). Heading contexts
+   override this below. */
 .fancy-node-titles-icon {
   width: 1em !important;
   height: 1em !important;
   margin-right: 0.15em;
+  vertical-align: -0.175em;
+}
+
+/* In heading contexts (node title H1/H2, Views rows styled as headings) the
+   larger font and looser line-height read better with a deeper drop. */
+h1 .fancy-node-titles-icon,
+h2 .fancy-node-titles-icon,
+h3 .fancy-node-titles-icon,
+h4 .fancy-node-titles-icon,
+h5 .fancy-node-titles-icon,
+h6 .fancy-node-titles-icon {
   vertical-align: -0.15em;
 }
