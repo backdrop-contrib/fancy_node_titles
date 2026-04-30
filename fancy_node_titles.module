@@ -92,6 +92,25 @@ function fancy_node_titles_get_title($node) {
 }
 
 /**
+ * Implements hook_views_api().
+ */
+function fancy_node_titles_views_api() {
+  return array(
+    'api'  => 3,
+    'path' => backdrop_get_path('module', 'fancy_node_titles'),
+  );
+}
+
+/**
+ * Implements hook_autoload_info().
+ */
+function fancy_node_titles_autoload_info() {
+  return array(
+    'fancy_node_titles_handler_field_fancy_title' => 'views/fancy_node_titles_handler_field_fancy_title.inc',
+  );
+}
+
+/**
  * Implements hook_config_info().
  */
 function fancy_node_titles_config_info() {
