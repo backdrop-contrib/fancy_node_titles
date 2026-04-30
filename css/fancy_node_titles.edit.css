@@ -1,0 +1,94 @@
+/* Container grouping the title, display title, and icon fields */
+.fancy-node-titles-group {
+  background: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px 16px 4px;
+  margin-bottom: 16px;
+}
+
+/* Small decorative icon shown before the icon input field */
+.fancy-node-titles-field-icon {
+  vertical-align: -0.15em;
+  margin-right: 4px;
+  opacity: 0.6;
+}
+
+.fancy-node-titles-toolbar {
+  margin-top: 6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.fancy-node-titles-toolbar-label {
+  font-size: 0.85em;
+  color: #666;
+  margin-right: 4px;
+}
+
+.fancy-node-titles-btn {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.82em;
+  cursor: pointer;
+  border: 1px solid #bbb;
+  background: #f5f5f5;
+  border-radius: 3px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.fancy-node-titles-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+.fancy-node-titles-btn:active {
+  background: #d0d0d0;
+}
+
+.fancy-node-titles-clear-btn {
+  background: #fde8e8;
+  border-color: #e4a0a0;
+  color: #a00;
+}
+
+.fancy-node-titles-clear-btn:hover {
+  background: #f5c6c6;
+  border-color: #c06060;
+}
+
+.fancy-node-titles-clear-btn:active {
+  background: #ebb0b0;
+}
+
+.fancy-node-titles-display-toggle {
+  display: inline-block;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 0.9em;
+}
+
+/* Icon input and live preview */
+.fancy-node-titles-icon-preview {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  vertical-align: middle;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.fancy-node-titles-icon-preview svg {
+  width: 28px;
+  height: 28px;
+}
+
+.fancy-node-titles-icon-invalid {
+  font-size: 0.82em;
+  color: #a00;
+  font-style: italic;
+}
