@@ -385,9 +385,10 @@ function fancy_node_titles_form_node_form_alter(&$form, &$form_state, $form_id) 
     '#element_validate' => array('fancy_node_titles_validate_icon_name'),
   );
 
-  // Attach JS and CSS once at the form level.
+  // Attach JS and the edit-form CSS at the form level. Display CSS is
+  // attached separately by hook_node_view() and the Views handler.
   $form['#attached']['js'][]  = backdrop_get_path('module', 'fancy_node_titles') . '/js/fancy_node_titles.js';
-  $form['#attached']['css'][] = backdrop_get_path('module', 'fancy_node_titles') . '/css/fancy_node_titles.css';
+  $form['#attached']['css'][] = backdrop_get_path('module', 'fancy_node_titles') . '/css/fancy_node_titles.edit.css';
   $form['#attached']['js'][]  = array(
     'data' => array(
       'fancyNodeTitles' => array(
