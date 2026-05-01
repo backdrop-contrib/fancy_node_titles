@@ -75,18 +75,3 @@ function fancy_node_titles_install() {
 function fancy_node_titles_uninstall() {
   config('fancy_node_titles.settings')->delete();
 }
-
-/**
- * Add icon column to fancy_node_titles_display table.
- */
-function fancy_node_titles_update_1000() {
-  if (!db_field_exists('fancy_node_titles_display', 'icon')) {
-    db_add_field('fancy_node_titles_display', 'icon', array(
-      'description' => 'Phosphor icon name to display before the title.',
-      'type' => 'varchar',
-      'length' => 128,
-      'not null' => FALSE,
-      'default' => '',
-    ));
-  }
-}
